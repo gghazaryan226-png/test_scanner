@@ -1,314 +1,311 @@
 <!DOCTYPE html>
 <html lang="hy">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Վաճառքի Կետ (POS)</title>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Վաճառքի Կետ (POS)</title>
 
-    <style>
-        /* Մոբայլ ոճեր (անփոփոխ) */ 
-        body { font-family: 'Arial', sans-serif; margin: 0; padding: 10px; background-color: #f4f4f9; color: #333; }
-        .container { max-width: 450px; margin: 0 auto; background-color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #007bff; margin-bottom: 20px; }
-        #scanner-area { position: relative; width: 100%; height: 200px; background-color: #000; margin-bottom: 15px; border-radius: 4px; overflow: hidden; }
-        #videoElement { width: 100%; height: 100%; object-fit: cover; }
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; background-color: rgba(0, 0, 0, 0.4); font-weight: bold; }
-        input[type="text"], input[type="number"], button { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
-        button { cursor: pointer; color: #fff; border: none; font-weight: bold; }
-        .btn-primary { background-color: #28a745; }
-        .btn-secondary { background-color: #007bff; }
-        .btn-danger { background-color: #dc3545; }
-        #products-list { border-top: 2px solid #eee; padding-top: 10px; margin-top: 10px; }
-        .product-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee; }
-        .item-details { flex-grow: 1; }
-        .item-quantity-controls { display: flex; align-items: center; }
-        .quantity-display { margin: 0 10px; font-weight: bold; color: #007bff; min-width: 20px; text-align: center; }
-        #total-section div { display: flex; justify-content: space-between; padding: 5px 0; }
-        #final-total { font-size: 1.5em; font-weight: bold; color: #dc3545; }
-    </style>
+  <!-- ZXing for camera barcode scanning -->
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+
+  <style>
+    /* Մոբայլ first ոճավորում */
+    :root { --brand:#007bff; --ok:#28a745; --danger:#dc3545; --bg:#f4f4f9; }
+    *{box-sizing:border-box}
+    body{font-family:Arial,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:10px;background:var(--bg);color:#333}
+    .container{max-width:480px;margin:0 auto;background:#fff;padding:15px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+    h1{margin:0 0 14px;text-align:center;color:var(--brand)}
+    #scanner-area{position:relative;width:100%;height:220px;background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px}
+    #videoElement{width:100%;height:100%;object-fit:cover}
+    .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;background:rgba(0,0,0,.25);font-weight:bold;text-align:center;padding:6px}
+    input[type="text"],input[type="number"],button{width:100%;padding:10px;margin-bottom:10px;border-radius:6px;border:1px solid #d7d7d7;font-size:14px}
+    button{cursor:pointer;color:#fff;border:none;font-weight:bold}
+    .btn-primary{background:var(--ok)}
+    .btn-secondary{background:var(--brand)}
+    .btn-danger{background:var(--danger)}
+    .btn-ghost{background:#e9eefc;color:#274dff;border:1px solid #cfd8ff}
+    #products-list{border-top:2px solid #eee;padding-top:8px;margin-top:8px}
+    .product-item{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #eee}
+    .item-details{flex:1;min-width:0}
+    .item-title{font-weight:600}
+    .item-quantity-controls{display:flex;align-items:center;gap:6px}
+    .quantity-display{min-width:24px;text-align:center;font-weight:700;color:var(--brand)}
+    #total-section{margin-top:8px}
+    #total-section div{display:flex;justify-content:space-between;padding:5px 0}
+    #final-total{font-size:1.4em;font-weight:bold;color:var(--danger)}
+    .row{display:flex;gap:8px}
+    .row > *{flex:1}
+    small.muted{display:block;color:#666;margin:-6px 0 8px}
+  </style>
 </head>
 <body>
-
-<div class="container">
+  <div class="container">
     <h1>Վաճառքի Կետ</h1>
 
     <div id="scanner-area">
-        <video id="videoElement" autoplay playsinline></video>
-        <div class="overlay" id="overlay">Սպասում է տեսախցիկին...</div>
+      <video id="videoElement" autoplay playsinline></video>
+      <div class="overlay" id="overlay">Սպասում է տեսախցիկի թույլատվությանը…</div>
     </div>
-    
-    <input type="text" id="manualBarcodeInput" placeholder="Կոդի Ձեռքով Մուտքագրում">
-    <button class="btn-secondary" onclick="handleManualInput()">Ավելացնել Կոդը (Ձեռքով)</button>
+
+    <div class="row">
+      <input type="text" id="manualBarcodeInput" placeholder="Կոդի ձեռքով մուտքագրում">
+      <button class="btn-secondary" id="btnManualAdd">Ավելացնել</button>
+    </div>
+    <small class="muted">Խորհուրդ․ գործիքի տեսախցիկը աշխատում է միայն HTTPS կայքերում։</small>
 
     <hr>
-    
-    <h2>Ընթացիկ Պատվեր</h2>
+
+    <h2 style="margin:8px 0">Ընթացիկ Պատվեր</h2>
     <div id="products-list">
-        <p id="empty-list-message">Ցուցակը դատարկ է։</p>
+      <p id="empty-list-message">Ցուցակը դատարկ է։</p>
     </div>
 
     <hr>
 
     <div id="discount-section">
-        <label for="discount-input">Զեղչ (%)</label>
-        <input type="number" id="discount-input" min="0" max="100" value="0" oninput="calculateTotal()">
+      <label for="discount-input">Զեղչ (%)</label>
+      <input type="number" id="discount-input" min="0" max="100" value="0">
     </div>
 
     <div id="total-section">
-        <div><span>Ենթագումար:</span> <span id="sub-total">0.00 Դր</span></div>
-        <div><span>Զեղչի Գումար:</span> <span id="discount-amount">0.00 Դր</span></div>
-        <div id="final-total"><span>ԸՆԴՀԱՆՈՒՐ:</span> <span id="final-total-amount">0.00 Դր</span></div>
+      <div><span>Ենթագումար</span> <span id="sub-total">0.00 Դր</span></div>
+      <div><span>Զեղչի գումար</span> <span id="discount-amount">0.00 Դր</span></div>
+      <div id="final-total"><span>ԸՆԴՀԱՆՈՒՐ</span> <span id="final-total-amount">0.00 Դր</span></div>
     </div>
-    
+
     <hr>
-    
-    <button class="btn-primary" id="sale-button" onclick="submitSale()">ՎԱՃԱՌՔ</button>
 
-</div>
+    <div class="row">
+      <button class="btn-ghost" id="btnClear">Մաքրել ցուցակը</button>
+      <button class="btn-primary" id="sale-button">ՎԱՃԱՌՔ</button>
+    </div>
+  </div>
 
-<script>
+  <script>
     // --- ԿՈՆՖԻԳՈՒՐԱՑԻԱ ---
-    // !!! ՓՈԽԱՐԻՆԵԼ ԱՅՍ ՏՈՂԵՐԸ ՁԵՐ ԻՐԱԿԱՆ WEB APP URL-ՆԵՐՈՎ !!!
-    const BASE_API_URL = 'https://script.google.com/macros/s/AKfycbyqZQuiIjIx7dok_3OczGy-39z8i8M_omy1c4i8xMQCCFfGNc-4yKJb2AiamX45KQkMFQ/exec'; // Օրինակ: https://script.google.com/macros/s/AKfyc.../exec
-    
-    // GET-ը կանչում է doGet(e) ֆունկցիան, ավելացնելով ?barcode= ավտոմատ կերպով
-    const CATALOG_API_URL = BASE_API_URL + '?barcode='; 
-    // POST-ը կանչում է doPost(e) ֆունկցիան
-    const SALE_API_URL = BASE_API_URL; 
-    
+    // ՓՈԽԵՔ ԱՅՍ ՏՈՂԸ՝ ձեր Web App /exec URL-ով
+    const BASE_API_URL = 'https://script.google.com/macros/s/PASTE_YOUR_EXEC_ID/exec';
+
+    const CATALOG_API_URL = BASE_API_URL + '?barcode='; // doGet(e)
+    const SALE_API_URL    = BASE_API_URL;               // doPost(e)
+
+    // --- ՊՄՓ ---
     let products = [];
+    let scanning = false;
     const codeReader = new ZXing.BrowserMultiFormatReader();
-    const videoElement = document.getElementById('videoElement');
+    const videoElement   = document.getElementById('videoElement');
     const overlayElement = document.getElementById('overlay');
     const manualBarcodeInput = document.getElementById('manualBarcodeInput');
 
-    // =======================================================
-    // ՖՈՒՆԿՑԻԱ 1: ԿԱՄԵՐԱՅԻ ՄԻԱՑՈՒՄ ԵՎ ՍԿԱՆԱՎՈՐՈՒՄ
-    // =======================================================
+    // ===== ՕԳՆԱԿԱՆՆԵՐ =====
+    const formatAMD = n => (Number(n)||0).toFixed(2) + ' Դր';
 
-    function startScanner() {
-        overlayElement.textContent = 'Սկանավորվում է... (Փնտրում է կոդը)';
-        
-        codeReader.getVideoInputDevices()
-            .then((videoInputDevices) => {
-                if (videoInputDevices.length === 0) {
-                    overlayElement.textContent = 'Սխալ: Տեսախցիկ չի գտնվել։';
-                    return;
-                }
-                
-                const selectedDeviceId = videoInputDevices.find(device => 
-                    device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('environment')
-                )?.deviceId || videoInputDevices[0].deviceId;
-
-                codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, error) => {
-                    if (result) {
-                        overlayElement.textContent = `Կոդը գտնված է: ${result.text}`;
-                        processBarcode(result.text); 
-                        codeReader.reset(); 
-                        setTimeout(startScanner, 2000); // Վերագործարկել 2 վայրկյան հետո
-                    }
-                    if (error && !(error instanceof ZXing.NotFoundException)) {
-                        // Կարող է լինել NotFoundException, որը նորմալ է (կոդ չկա կադրում)
-                    }
-                });
-            })
-            .catch((err) => {
-                console.error('Սխալ մուտքի ժամանակ:', err);
-                overlayElement.textContent = 'Թույլատվության սխալ կամ HTTPS պահանջ։';
-            });
+    function setSaleButtonState() {
+      const saleBtn = document.getElementById('sale-button');
+      saleBtn.disabled = products.length === 0;
     }
 
-    // =======================================================
-    // ՖՈՒՆԿՑԻԱ 2: ՁԵՌՔՈՎ ՄՈՒՏՔԱԳՐՈՒՄ
-    // =======================================================
-
-    function handleManualInput() {
-        const barcode = manualBarcodeInput.value.trim();
-        if (barcode) {
-            processBarcode(barcode);
-            manualBarcodeInput.value = '';
-        } else {
-            alert('Խնդրում ենք մուտքագրել կոդը։');
+    // ===== ՍԿԱՆԵՐ =====
+    async function startScanner() {
+      try {
+        overlayElement.textContent = 'Սկանավորում…';
+        const devices = await codeReader.getVideoInputDevices();
+        if (!devices.length) {
+          overlayElement.textContent = 'Սխալ․ տեսախցիկ չի գտնվել։';
+          return;
         }
-    }
+        const back = devices.find(d => (d.label || '').toLowerCase().includes('back') || (d.label || '').toLowerCase().includes('environment'));
+        const selected = (back || devices[0]).deviceId;
 
-    // =======================================================
-    // ՖՈՒՆԿՑԻԱ 3: ՓՆՏՐՈՒՄ GOOGLE SHEETS-ՈՒՄ ԵՎ ԱՎԵԼԱՑՈՒՄ (GET)
-    // =======================================================
+        if (scanning) codeReader.reset();
+        scanning = true;
 
-    async function processBarcode(barcode) {
-        const existingItem = products.find(p => p.barcode === barcode);
-        if (existingItem) {
-            changeQuantity(barcode, 1);
-            return;
-        }
-
-        try {
-            overlayElement.textContent = 'Փնտրում է ապրանքը...';
-            // Կանչում ենք doGet(e) ֆունկցիան GAS-ում
-            const response = await fetch(CATALOG_API_URL + barcode);
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                const newItem = {
-                    barcode: barcode,
-                    // Այս դաշտերը ստացվում են GAS-ի կողմից
-                    product_id: data.product_id,
-                    name: data.product_name, // Ստացված անուն
-                    unit_price: parseFloat(data.product_price), // Ստացված գին
-                    quantity: 1
-                };
-                products.push(newItem);
-                updateProductList();
-                overlayElement.textContent = `Ավելացված է: ${newItem.name}`;
-            } else {
-                alert(`Ապրանքը չի գտնվել (${barcode}): ${data.message || 'Սխալ'}`);
-                overlayElement.textContent = 'Կոդը չի գտնվել։';
-            }
-        } catch (error) {
-            console.error('Սխալ API-ի հետ կապի ժամանակ:', error);
-            alert('Սխալ: Չհաջողվեց կապվել կատալոգի հետ։');
-        }
-    }
-
-    // =======================================================
-    // ՖՈՒՆԿՑԻԱ 4: ՔԱՆԱԿԻ ՓՈՓՈԽՈՒԹՅՈՒՆ
-    // =======================================================
-    
-    window.changeQuantity = (barcode, change) => {
-        const item = products.find(p => p.barcode === barcode);
-        if (item) {
-            item.quantity += change;
-            if (item.quantity <= 0) {
-                products = products.filter(p => p.barcode !== barcode);
-            }
-            updateProductList();
-        }
-    }
-    
-    // =======================================================
-    // ՖՈՒՆԿՑԻԱ 5: ՀԵՌԱՑՈՒՄ ՑՈՒՑԱԿԻՑ (DELETE)
-    // =======================================================
-
-    window.removeItem = (barcode) => {
-        products = products.filter(p => p.barcode !== barcode);
-        updateProductList();
-    }
-    
-    // =======================================================
-    // ՖՈՒՆԿՑԻԱ 6: ԹԱՐՄԱՑՆԵԼ ՑՈՒՑԱԿԸ ԵՎ ՀԱՇՎԱՐԿԵԼ ԸՆԴՀԱՆՈՒՐԸ
-    // =======================================================
-
-    function updateProductList() {
-        const listContainer = document.getElementById('products-list');
-        listContainer.innerHTML = '';
-        
-        if (products.length === 0) {
-            listContainer.innerHTML = '<p id="empty-list-message">Ցուցակը դատարկ է։</p>';
-        }
-
-        products.forEach(item => {
-            const total = (item.unit_price * item.quantity).toFixed(2);
-            
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'product-item';
-            itemDiv.innerHTML = `
-                <div class="item-details">
-                    <div>${item.name} (${item.unit_price} Դր)</div>
-                    <div>Գումար: ${total} Դր</div>
-                </div>
-                <div class="item-quantity-controls">
-                    <button class="btn-secondary" style="width: 30px;" onclick="changeQuantity('${item.barcode}', -1)">-</button>
-                    <span class="quantity-display">${item.quantity}</span>
-                    <button class="btn-secondary" style="width: 30px;" onclick="changeQuantity('${item.barcode}', 1)">+</button>
-                    <button class="btn-danger" style="width: 30px; margin-left: 10px;" onclick="removeItem('${item.barcode}')">X</button>
-                </div>
-            `;
-            listContainer.appendChild(itemDiv);
+        codeReader.decodeFromVideoDevice(selected, videoElement, (result, err) => {
+          if (result) {
+            overlayElement.textContent = `Կոդը գտնվեց՝ ${result.text}`;
+            processBarcode(result.text);
+            codeReader.reset();
+            scanning = false;
+            setTimeout(startScanner, 1200); // փոքր դադար կրկնակի ընթերցումից խուսափելու համար
+          } else if (err && !(err instanceof ZXing.NotFoundException)) {
+            // այլ սխալներ լռելյայն չենք ցուցադրում
+          }
         });
-        
-        calculateTotal();
+      } catch (e) {
+        console.error(e);
+        overlayElement.textContent = 'Թույլատվության սխալ կամ HTTPS պահանջ։';
+      }
     }
-    
-    // =======================================================
-    // ՖՈՒՆԿՑԻԱ 7: ԸՆԴՀԱՆՈՒՐԻ ՀԱՇՎԱՐԿ
-    // =======================================================
 
+    // ===== ՁԵՌՔՈՎ ՄՈՒՏՔ =====
+    function handleManualInput() {
+      const barcode = manualBarcodeInput.value.trim();
+      if (!barcode) return alert('Մուտքագրեք կոդը։');
+      processBarcode(barcode);
+      manualBarcodeInput.value = '';
+    }
+
+    // ===== ԿԱՏԱԼՈԳԻ ՓՆՏՐՈՒՄ (GET) =====
+    async function processBarcode(barcode) {
+      // Եթե արդեն ցուցակում է՝ ավելացնում ենք քանակը
+      const existing = products.find(p => p.barcode === barcode);
+      if (existing) {
+        changeQuantity(barcode, 1);
+        return;
+      }
+
+      try {
+        overlayElement.textContent = 'Փնտրում է ապրանքը…';
+        const res = await fetch(CATALOG_API_URL + encodeURIComponent(barcode), { method: 'GET' });
+        if (!res.ok) throw new Error('Կատալոգի հարցման սխալ');
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          const price = Number(data.product_price) || 0;
+          const item = {
+            barcode,
+            product_id: data.product_id,
+            name: data.product_name || barcode,
+            unit_price: price,
+            quantity: 1
+          };
+          products.push(item);
+          updateProductList();
+          overlayElement.textContent = `Ավելացված է՝ ${item.name}`;
+        } else {
+          alert(`Ապրանքը չի գտնվել (${barcode}).`);
+          overlayElement.textContent = 'Կոդը չի գտնվել։';
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Չհաջողվեց կապվել կատալոգի հետ։');
+        overlayElement.textContent = 'Ցանցի սխալ։';
+      }
+    }
+
+    // ===== ՔԱՆԱԿ =====
+    window.changeQuantity = (barcode, delta) => {
+      const it = products.find(p => p.barcode === barcode);
+      if (!it) return;
+      it.quantity += delta;
+      if (it.quantity <= 0) {
+        products = products.filter(p => p.barcode !== barcode);
+      }
+      updateProductList();
+    };
+
+    // ===== ՀԵՌԱՑՆԵԼ ՏՈՂԸ =====
+    window.removeItem = (barcode) => {
+      products = products.filter(p => p.barcode !== barcode);
+      updateProductList();
+    };
+
+    // ===== ԹԱՐՄԱՑՆԵԼ ՑՈՒՑԱԿԸ + ՀԱՇՎԱՐԿՆԵՐ =====
+    function updateProductList() {
+      const list = document.getElementById('products-list');
+      list.innerHTML = '';
+
+      if (!products.length) {
+        list.innerHTML = '<p id="empty-list-message">Ցուցակը դատարկ է։</p>';
+      }
+
+      products.forEach(item => {
+        const lineTotal = (item.unit_price * item.quantity);
+        const div = document.createElement('div');
+        div.className = 'product-item';
+        div.innerHTML = `
+          <div class="item-details">
+            <div class="item-title">${item.name}</div>
+            <div>Միավոր գին՝ ${formatAMD(item.unit_price)} • Գումար՝ <b>${formatAMD(lineTotal)}</b></div>
+          </div>
+          <div class="item-quantity-controls">
+            <button class="btn-secondary" style="width:34px" onclick="changeQuantity('${item.barcode}', -1)">−</button>
+            <span class="quantity-display">${item.quantity}</span>
+            <button class="btn-secondary" style="width:34px" onclick="changeQuantity('${item.barcode}', 1)">+</button>
+            <button class="btn-danger" style="width:34px" onclick="removeItem('${item.barcode}')">×</button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+
+      calculateTotal();
+      setSaleButtonState();
+    }
+
+    // ===== ԸՆԴՀԱՆՈՒՐ ՀԱՇՎԱՐԿ =====
     window.calculateTotal = () => {
-        let subTotal = products.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-        
-        const discountPercentage = parseFloat(document.getElementById('discount-input').value) || 0;
-        const discountFactor = discountPercentage / 100;
-        
-        const discountAmount = subTotal * discountFactor;
-        const finalTotal = subTotal - discountAmount;
-        
-        document.getElementById('sub-total').textContent = subTotal.toFixed(2) + ' Դր';
-        document.getElementById('discount-amount').textContent = discountAmount.toFixed(2) + ' Դր';
-        document.getElementById('final-total-amount').textContent = finalTotal.toFixed(2) + ' Դր';
-    }
+      const subTotal = products.reduce((s, it) => s + (it.unit_price * it.quantity), 0);
+      const discountPct = Number(document.getElementById('discount-input').value) || 0;
+      const discountAmt = subTotal * (discountPct / 100);
+      const finalTotal  = subTotal - discountAmt;
 
-    // =======================================================
-    // ՖՈՒՆԿՑԻԱ 8: ՎԱՃԱՌՔԻ ԱՄԱԳՐՈՒՄ (POST)
-    // =======================================================
+      document.getElementById('sub-total').textContent = formatAMD(subTotal);
+      document.getElementById('discount-amount').textContent = formatAMD(discountAmt);
+      document.getElementById('final-total-amount').textContent = formatAMD(finalTotal);
+    };
 
+    // ===== ՎԱՃԱՌՔԻ ԱՄՐԱԳՐՈՒՄ (POST՝ text/plain → no preflight) =====
     async function submitSale() {
-        if (products.length === 0) {
-            alert('Վաճառքի ցուցակը դատարկ է։');
-            return;
+      if (!products.length) return alert('Վաճառքի ցուցակը դատարկ է։');
+
+      const saleButton = document.getElementById('sale-button');
+      const discountPct = Number(document.getElementById('discount-input').value) || 0;
+      const subTotal = products.reduce((s, it) => s + (it.unit_price * it.quantity), 0);
+      const finalTotal = subTotal * (1 - discountPct / 100);
+
+      const payload = {
+        // timestamp-ը Apps Script-ում նույնպես կգեներացվի, սա միայն ինֆո է
+        timestamp: new Date().toISOString(),
+        discount_percentage: discountPct,
+        final_total: finalTotal,
+        items: products.map(p => ({
+          barcode: p.barcode,
+          quantity: p.quantity,
+          unit_price: p.unit_price
+        }))
+      };
+
+      try {
+        saleButton.disabled = true;
+        saleButton.textContent = 'Մշակվում է…';
+
+        // ԿԱՐԵՎՈՐ՝ Content-Type-ը "text/plain" է, որպեսզի preflight չլինի
+        const res = await fetch(SALE_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        // Apps Script-ը միշտ text/json է վերադարձնում, կարդում ենք JSON
+        const result = await res.json();
+
+        if (res.ok && result && result.result === 'success') {
+          alert(result.message || 'Վաճառքն ամրագրված է։');
+          products = [];
+          document.getElementById('discount-input').value = 0;
+          updateProductList();
+        } else {
+          alert((result && result.message) ? `Սխալ՝ ${result.message}` : 'Սխալ վաճառքի գրանցման ժամանակ։');
         }
-
-        const discount = parseFloat(document.getElementById('discount-input').value) || 0;
-        const subTotal = products.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-        
-        // Պատրաստել տվյալները (POST)
-        const saleData = {
-            timestamp: new Date().toISOString(),
-            items: products.map(p => ({
-                barcode: p.barcode,
-                quantity: p.quantity,
-                unit_price: p.unit_price
-            })),
-            discount_percentage: discount,
-            final_total: subTotal * (1 - discount / 100)
-        };
-
-        try {
-            const saleButton = document.getElementById('sale-button');
-            saleButton.disabled = true;
-            saleButton.textContent = 'Մշակվում է...';
-            
-            // Կանչում ենք doPost(e) ֆունկցիան GAS-ում
-            const response = await fetch(SALE_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(saleData)
-            });
-            
-            const result = await response.json();
-
-            if (result.result === 'success') {
-                alert('Վաճառքն ամրագրված է։');
-                products = [];
-                document.getElementById('discount-input').value = 0;
-                updateProductList();
-            } else {
-                alert('Սխալ վաճառքի գրանցման ժամանակ։');
-            }
-        } catch (error) {
-            console.error('Վաճառքի ամրագրման սխալ:', error);
-            alert('Կապի սխալ։');
-        } finally {
-            saleButton.disabled = false;
-            saleButton.textContent = 'ՎԱՃԱՌՔ';
-        }
+      } catch (err) {
+        console.error('Վաճառքի ամրագրման սխալ:', err);
+        alert('Ցանցային սխալ կամ սխալ URL։');
+      } finally {
+        saleButton.disabled = false;
+        saleButton.textContent = 'ՎԱՃԱՌՔ';
+      }
     }
-    
-    // Էջի բեռնումից հետո
-    window.onload = startScanner;
-</script>
 
+    // ===== ԻՐԱԴԱՐՁՈՒԹՅՈՒՆՆԵՐ =====
+    document.getElementById('btnManualAdd').addEventListener('click', handleManualInput);
+    document.getElementById('sale-button').addEventListener('click', submitSale);
+    document.getElementById('btnClear').addEventListener('click', () => { products = []; updateProductList(); });
+
+    // Սկսել սկաները էջի բեռնման ժամանակ
+    window.addEventListener('load', () => {
+      setSaleButtonState();
+      startScanner();
+    });
+  </script>
 </body>
 </html>
